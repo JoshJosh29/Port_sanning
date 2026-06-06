@@ -1,0 +1,70 @@
+import socket
+import threading
+from datetime import datetime
+
+# Thread-safe printing and logging
+lock = threading.Lock()
+
+results = []
+
+def scan_port(host, port):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+
+        result = sock.connect_ex((host, port))
+
+        if result == 0:
+            status = "OPEN"
+        else:
+            status = "CLOSED"
+
+        sock.close()
+
+    except socket.timeout:
+        status = "TIMEOUT"
+
+    except Exception as e:
+        status = f"ERROR ({e})"
+
+    with lock:
+        print(f"Port {port}: {status}")
+        results.append(f"Port {port}: {status}")
+
+
+def main():
+    host = input("Enter hostname or IP: ")
+    start_port = int(input("Start port: "))
+    end_port = int(input("End port: "))
+
+    print(f"\nScanning {host}...\n")
+
+    threads = []
+
+    for port in range(start_port, end_port + 1):
+        thread = threading.Thread(
+            target=scan_port,
+            args=(host, port)
+        )
+
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    filename = "scan_results.txt"
+
+    with open(filename, "w") as file:
+        file.write(f"TCP Port Scan Report\n")
+        file.write(f"Target: {host}\n")
+        file.write(f"Date: {datetime.now()}\n\n")
+
+        for result in results:
+            file.write(result + "\n")
+
+    print(f"\nResults saved to {filename}")
+
+
+if __name__ == "__main__":
+    main()
